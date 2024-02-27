@@ -14,8 +14,8 @@ type Coordinator struct {
 	tasks   chan task
 	nReduce int
 
-	mu   sync.Mutex
-	nMap int // guards nMap
+	mu   sync.Mutex // guards nMap
+	nMap int
 }
 
 type task struct {
