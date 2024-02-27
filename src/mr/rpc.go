@@ -28,7 +28,8 @@ type ExampleReply struct {
 type MapArgs struct{}
 
 type MapReply struct {
-	File string
+	NReduce int // The number of partitions denoted as R in the paper
+	File    string
 }
 
 // Cook up a unique-ish UNIX-domain socket name

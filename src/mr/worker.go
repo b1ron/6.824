@@ -3,8 +3,10 @@ package mr
 import (
 	"fmt"
 	"hash/fnv"
+	"io"
 	"log"
 	"net/rpc"
+	"os"
 )
 
 // Map functions return a slice of KeyValue.
@@ -30,10 +32,28 @@ func Worker(mapf func(string, string) []KeyValue,
 	// uncomment to send the Example RPC to the coordinator.
 	// CallExample()
 
-	CallMap()
+	reply := CallMap()
+
+	file, err := os.Open(reply.File)
+	if err != nil {
+		log.Fatalf("cannot open %v", reply.File)
+	}
+	content, err := io.ReadAll(file)
+	if err != nil {
+		log.Fatalf("cannot read %v", file.Name())
+	}
+	file.Close()
+
+	kva := mapf(file.Name(), string(content))
+
+	intermediate := make(map[int][]KeyValue) // intermediate key-value pairs partitioned into R buckets
+	for _, kv := range kva {
+		reduceTask := ihash(kv.Key) % reply.NReduce
+		intermediate[reduceTask] = append(intermediate[reduceTask], kv)
+	}
 }
 
-func CallMap() {
+func CallMap() MapReply {
 	args := MapArgs{}
 	reply := MapReply{}
 
@@ -43,6 +63,7 @@ func CallMap() {
 	} else {
 		fmt.Printf("call failed!\n")
 	}
+	return reply
 }
 
 // example function to show how to make an RPC call to the coordinator.

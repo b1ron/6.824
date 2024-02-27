@@ -6,16 +6,12 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
-	"sync"
 )
 
 type Coordinator struct {
 	// Your definitions here.
 	tasks   chan task
 	nReduce int
-
-	mu   sync.Mutex // guards nMap
-	nMap int
 }
 
 type task struct {
@@ -33,9 +29,9 @@ func (c *Coordinator) Map(_ *MapArgs, reply *MapReply) error {
 			continue
 		}
 
-		c.mu.Lock()
-		c.nMap--
-		c.mu.Unlock()
+		t.state = 1
+
+		reply.NReduce = c.nReduce
 		reply.File = t.file
 		return nil
 	}
@@ -95,7 +91,6 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 		c.tasks <- task{0, file}
 	}
 	c.nReduce = nReduce
-	c.nMap = len(files)
 
 	c.server()
 	return &c
