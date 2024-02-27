@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 	"log"
 	"net/rpc"
+	"os"
 )
 
 // Map functions return a slice of KeyValue.
@@ -35,6 +36,8 @@ func Worker(mapf func(string, string) []KeyValue,
 
 func CallMap() {
 	args := MapArgs{}
+	args.Id = os.Getpid()
+
 	reply := MapReply{}
 
 	ok := call("Coordinator.Map", &args, &reply)

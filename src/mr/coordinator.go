@@ -6,19 +6,35 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"sync"
 )
 
 type Coordinator struct {
 	// Your definitions here.
-	file    []string
+	tasks   map[int]task
 	nReduce int
-	NMap    int
+
+	mu    sync.Mutex // guards files and nMap
+	files []string
+	nMap  int
+}
+
+type task struct {
+	id   int
+	file string
 }
 
 // Your code here -- RPC handlers for the worker to call.
 
 func (c *Coordinator) Map(args *MapArgs, reply *MapReply) error {
-	reply.File = c.file[0]
+	if _, ok := c.tasks[args.Id]; !ok {
+		c.mu.Lock()
+		c.tasks[args.Id] = task{id: c.nMap, file: c.files[c.nMap]}
+		c.nMap++
+		c.mu.Unlock()
+
+		reply.File = c.tasks[args.Id].file
+	}
 	return nil
 }
 
@@ -61,8 +77,10 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
 
 	// Your code here.
-	c.file = files
+	c.tasks = make(map[int]task)
 	c.nReduce = nReduce
+	c.files = files
+	c.nMap = 0
 
 	c.server()
 	return &c

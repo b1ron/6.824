@@ -26,7 +26,9 @@ type ExampleReply struct {
 
 // Add your RPC definitions here.
 
-type MapArgs struct{}
+type MapArgs struct {
+	Id int
+}
 
 type MapReply struct {
 	File string
