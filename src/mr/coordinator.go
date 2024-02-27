@@ -11,30 +11,33 @@ import (
 
 type Coordinator struct {
 	// Your definitions here.
-	tasks   map[int]task
+	tasks   chan task
 	nReduce int
 
-	mu    sync.Mutex // guards files and nMap
-	files []string
-	nMap  int
+	mu   sync.Mutex
+	nMap int // guards nMap
 }
 
 type task struct {
-	id    int
 	state int // 0: not started, 1: in progress, 2: done
 	file  string
 }
 
 // Your code here -- RPC handlers for the worker to call.
 
-func (c *Coordinator) Map(args *MapArgs, reply *MapReply) error {
-	if _, ok := c.tasks[args.Id]; !ok {
-		c.mu.Lock()
-		c.tasks[args.Id] = task{id: c.nMap, state: 1, file: c.files[c.nMap]}
-		c.nMap++
-		c.mu.Unlock()
+func (c *Coordinator) Map(_ *MapArgs, reply *MapReply) error {
+	// farmout tasks to workers
+	for range c.tasks {
+		t := <-c.tasks
+		if t.state > 0 {
+			continue
+		}
 
-		reply.File = c.tasks[args.Id].file
+		c.mu.Lock()
+		c.nMap--
+		c.mu.Unlock()
+		reply.File = t.file
+		return nil
 	}
 	return nil
 }
@@ -78,10 +81,14 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
 
 	// Your code here.
-	c.tasks = make(map[int]task)
+	// the coordinator will keep track of the state of each task
+	// the coordinator can re-assign tasks to workers if they fail to complete them within a certain time frame (e.g. 10 seconds)
+	c.tasks = make(chan task, len(files))
+	for _, file := range files {
+		c.tasks <- task{0, file}
+	}
 	c.nReduce = nReduce
-	c.files = files
-	c.nMap = 0
+	c.nMap = len(files)
 
 	c.server()
 	return &c
