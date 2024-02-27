@@ -20,8 +20,9 @@ type Coordinator struct {
 }
 
 type task struct {
-	id   int
-	file string
+	id    int
+	state int // 0: not started, 1: in progress, 2: done
+	file  string
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -29,7 +30,7 @@ type task struct {
 func (c *Coordinator) Map(args *MapArgs, reply *MapReply) error {
 	if _, ok := c.tasks[args.Id]; !ok {
 		c.mu.Lock()
-		c.tasks[args.Id] = task{id: c.nMap, file: c.files[c.nMap]}
+		c.tasks[args.Id] = task{id: c.nMap, state: 1, file: c.files[c.nMap]}
 		c.nMap++
 		c.mu.Unlock()
 
