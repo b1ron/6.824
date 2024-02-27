@@ -70,6 +70,13 @@ func (c *Coordinator) Done() bool {
 	ret := false
 
 	// Your code here.
+	for t := range c.tasks {
+		if t.state != 2 {
+			continue
+		}
+
+		ret = true
+	}
 
 	return ret
 }
