@@ -51,6 +51,7 @@ func Worker(mapf func(string, string) []KeyValue,
 		reduceTask := ihash(kv.Key) % reply.NReduce
 		intermediate[reduceTask] = append(intermediate[reduceTask], kv)
 	}
+
 }
 
 func CallMap() MapReply {
