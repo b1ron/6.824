@@ -37,8 +37,6 @@ func Worker(mapf func(string, string) []KeyValue,
 		log.Fatalf("cannot call Map")
 	}
 
-	fmt.Printf("reply.File %v\n", reply.File)
-
 	file, err := os.Open(reply.File)
 	if err != nil {
 		log.Fatalf("cannot open %v", reply.File)
