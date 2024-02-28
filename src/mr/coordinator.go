@@ -1,6 +1,7 @@
 package mr
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -10,7 +11,7 @@ import (
 
 type Coordinator struct {
 	// Your definitions here.
-	tasks   chan task
+	tasks   chan *task
 	nReduce int
 }
 
@@ -22,9 +23,11 @@ type task struct {
 // Your code here -- RPC handlers for the worker to call.
 
 func (c *Coordinator) Map(_ *MapArgs, reply *MapReply) error {
+	// FIXME: tasks channel is empty but not nil, why?
+	fmt.Printf("len(tasks) %v, task is nil %t\n", len(c.tasks), c.tasks == nil)
+
 	// farmout tasks to workers
-	for range c.tasks {
-		t := <-c.tasks
+	for t := range c.tasks {
 		if t.state > 0 {
 			continue
 		}
@@ -86,10 +89,11 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	// Your code here.
 	// the coordinator will keep track of the state of each task
 	// the coordinator can re-assign tasks to workers if they fail to complete them within a certain time frame (e.g. 10 seconds)
-	c.tasks = make(chan task, len(files))
+	c.tasks = make(chan *task, len(files))
 	for _, file := range files {
-		c.tasks <- task{0, file}
+		c.tasks <- &task{0, file}
 	}
+
 	c.nReduce = nReduce
 
 	c.server()

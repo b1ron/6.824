@@ -32,7 +32,12 @@ func Worker(mapf func(string, string) []KeyValue,
 	// uncomment to send the Example RPC to the coordinator.
 	// CallExample()
 
-	reply := CallMap()
+	reply, ok := CallMap()
+	if !ok {
+		log.Fatalf("cannot call Map")
+	}
+
+	fmt.Printf("reply.File %v\n", reply.File)
 
 	file, err := os.Open(reply.File)
 	if err != nil {
@@ -54,17 +59,15 @@ func Worker(mapf func(string, string) []KeyValue,
 
 }
 
-func CallMap() MapReply {
-	args := MapArgs{}
-	reply := MapReply{}
+func CallMap() (*MapReply, bool) {
+	args := &MapArgs{}
+	reply := &MapReply{}
 
-	ok := call("Coordinator.Map", &args, &reply)
+	ok := call("Coordinator.Map", args, reply)
 	if ok {
-		fmt.Printf("reply.File %v\n", reply.File)
-	} else {
-		fmt.Printf("call failed!\n")
+		return reply, true
 	}
-	return reply
+	return nil, false
 }
 
 // example function to show how to make an RPC call to the coordinator.
