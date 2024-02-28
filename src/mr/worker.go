@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/rpc"
 	"os"
+	"sort"
 )
 
 // Map functions return a slice of KeyValue.
@@ -14,6 +15,14 @@ type KeyValue struct {
 	Key   string
 	Value string
 }
+
+// for sorting by key.
+type ByKey []KeyValue
+
+// for sorting by key.
+func (a ByKey) Len() int           { return len(a) }
+func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
 
 // use ihash(key) % NReduce to choose the reduce
 // task number for each KeyValue emitted by Map.
@@ -33,8 +42,10 @@ func Worker(mapf func(string, string) []KeyValue,
 	// CallExample()
 
 	reply, ok := CallMap()
-	if !ok {
-		log.Fatalf("cannot call Map")
+	if ok {
+		fmt.Printf("reply.File %v\n", reply.File)
+	} else {
+		log.Fatalf("call failed!\n")
 	}
 
 	file, err := os.Open(reply.File)
@@ -48,13 +59,25 @@ func Worker(mapf func(string, string) []KeyValue,
 	file.Close()
 
 	kva := mapf(file.Name(), string(content))
+	sort.Sort(ByKey(kva))
 
-	intermediate := make(map[int][]KeyValue) // intermediate key-value pairs partitioned into R buckets
+	intermediateM := make(map[int][]KeyValue) // intermediate key-value pairs partitioned into R buckets
 	for _, kv := range kva {
 		reduceTask := ihash(kv.Key) % reply.NReduce
-		intermediate[reduceTask] = append(intermediate[reduceTask], kv)
+		intermediateM[reduceTask] = append(intermediateM[reduceTask], kv)
 	}
 
+	for i := 0; i < reply.NReduce; i++ {
+		oname := fmt.Sprintf("mr-%v-%v", reply.ID, i)
+		ofile, err := os.Create(oname)
+		if err != nil {
+			log.Fatalf("cannot create %v", oname)
+		}
+		for _, kv := range intermediateM[i] {
+			fmt.Fprintf(ofile, "%v %v\n", kv.Key, kv.Value)
+		}
+		ofile.Close()
+	}
 }
 
 func CallMap() (*MapReply, bool) {

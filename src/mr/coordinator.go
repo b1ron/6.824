@@ -10,12 +10,13 @@ import (
 
 type Coordinator struct {
 	// Your definitions here.
-	tasks   chan *task
+	tasks   []task
 	nReduce int
 	done    chan bool
 }
 
 type task struct {
+	id    int
 	state int // 0: not started, 1: in progress, 2: done
 	file  string
 }
@@ -24,15 +25,16 @@ type task struct {
 
 func (c *Coordinator) Map(_ *MapArgs, reply *MapReply) error {
 	// farmout tasks to workers
-	for t := range c.tasks {
+	for i, t := range c.tasks {
 		if t.state > 0 {
 			continue
 		}
 
-		t.state = 1
-
-		reply.NReduce = c.nReduce
+		reply.ID = i
 		reply.File = t.file
+		reply.NReduce = c.nReduce
+
+		t.state = 1
 		return nil
 	}
 	return nil
@@ -66,6 +68,12 @@ func (c *Coordinator) Done() bool {
 	ret := false
 
 	// Your code here.
+	for _, t := range c.tasks {
+		if t.state != 2 {
+			continue
+		}
+		ret = true
+	}
 
 	return ret
 }
@@ -79,11 +87,10 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	// Your code here.
 	// the coordinator will keep track of the state of each task
 	// the coordinator can re-assign tasks to workers if they fail to complete them within a certain time frame (e.g. 10 seconds)
-	c.tasks = make(chan *task, len(files))
-	for _, file := range files {
-		c.tasks <- &task{0, file}
+	c.tasks = []task{}
+	for i, file := range files {
+		c.tasks = append(c.tasks, task{i, 0, file})
 	}
-
 	c.nReduce = nReduce
 
 	c.server()
