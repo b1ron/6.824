@@ -1,7 +1,6 @@
 package mr
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -13,6 +12,7 @@ type Coordinator struct {
 	// Your definitions here.
 	tasks   chan *task
 	nReduce int
+	done    chan bool
 }
 
 type task struct {
@@ -23,9 +23,6 @@ type task struct {
 // Your code here -- RPC handlers for the worker to call.
 
 func (c *Coordinator) Map(_ *MapArgs, reply *MapReply) error {
-	// FIXME: tasks channel is empty but not nil, why?
-	fmt.Printf("len(tasks) %v, task is nil %t\n", len(c.tasks), c.tasks == nil)
-
 	// farmout tasks to workers
 	for t := range c.tasks {
 		if t.state > 0 {
@@ -69,13 +66,6 @@ func (c *Coordinator) Done() bool {
 	ret := false
 
 	// Your code here.
-	for t := range c.tasks {
-		if t.state != 2 {
-			continue
-		}
-
-		ret = true
-	}
 
 	return ret
 }
