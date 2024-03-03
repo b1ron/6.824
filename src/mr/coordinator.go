@@ -10,9 +10,10 @@ import (
 
 type Coordinator struct {
 	// Your definitions here.
-	tasks   []task
-	nReduce int
-	done    chan bool
+	mapTasks    []task
+	reduceTasks []task
+	nReduce     int
+	done        chan bool
 }
 
 type task struct {
@@ -25,7 +26,7 @@ type task struct {
 
 func (c *Coordinator) Map(_ *MapArgs, reply *MapReply) error {
 	// farmout tasks to workers
-	for i, t := range c.tasks {
+	for i, t := range c.mapTasks {
 		if t.state > 0 {
 			continue
 		}
@@ -37,6 +38,10 @@ func (c *Coordinator) Map(_ *MapArgs, reply *MapReply) error {
 		t.state = 1
 		return nil
 	}
+	return nil
+}
+
+func (c *Coordinator) Reduce() error {
 	return nil
 }
 
@@ -68,7 +73,7 @@ func (c *Coordinator) Done() bool {
 	ret := false
 
 	// Your code here.
-	for _, t := range c.tasks {
+	for _, t := range c.mapTasks {
 		if t.state != 2 {
 			continue
 		}
@@ -87,9 +92,9 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	// Your code here.
 	// the coordinator will keep track of the state of each task
 	// the coordinator can re-assign tasks to workers if they fail to complete them within a certain time frame (e.g. 10 seconds)
-	c.tasks = []task{}
+	c.mapTasks = []task{}
 	for i, file := range files {
-		c.tasks = append(c.tasks, task{i, 0, file})
+		c.mapTasks = append(c.mapTasks, task{i, 0, file})
 	}
 	c.nReduce = nReduce
 

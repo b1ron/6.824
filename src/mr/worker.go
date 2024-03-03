@@ -1,6 +1,7 @@
 package mr
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"io"
@@ -41,10 +42,9 @@ func Worker(mapf func(string, string) []KeyValue,
 	// uncomment to send the Example RPC to the coordinator.
 	// CallExample()
 
+	// CallMap()
 	reply, ok := CallMap()
-	if ok {
-		fmt.Printf("reply.File %v\n", reply.File)
-	} else {
+	if !ok {
 		log.Fatalf("call failed!\n")
 	}
 
@@ -61,10 +61,10 @@ func Worker(mapf func(string, string) []KeyValue,
 	kva := mapf(file.Name(), string(content))
 	sort.Sort(ByKey(kva))
 
-	intermediateM := make(map[int][]KeyValue) // intermediate key-value pairs partitioned into R buckets
+	intermediateBuckets := make(map[int][]KeyValue) // intermediate key-value pairs partitioned into R buckets
 	for _, kv := range kva {
 		reduceTask := ihash(kv.Key) % reply.NReduce
-		intermediateM[reduceTask] = append(intermediateM[reduceTask], kv)
+		intermediateBuckets[reduceTask] = append(intermediateBuckets[reduceTask], kv)
 	}
 
 	for i := 0; i < reply.NReduce; i++ {
@@ -73,11 +73,19 @@ func Worker(mapf func(string, string) []KeyValue,
 		if err != nil {
 			log.Fatalf("cannot create %v", oname)
 		}
-		for _, kv := range intermediateM[i] {
-			fmt.Fprintf(ofile, "%v %v\n", kv.Key, kv.Value)
+
+		enc := json.NewEncoder(ofile)
+		for _, kv := range intermediateBuckets[i] {
+			err := enc.Encode(&kv)
+			if err != nil {
+				log.Fatalf("cannot encode %v", kv)
+			}
 		}
 		ofile.Close()
 	}
+
+	// CallReduce()
+
 }
 
 func CallMap() (*MapReply, bool) {
@@ -85,6 +93,17 @@ func CallMap() (*MapReply, bool) {
 	reply := &MapReply{}
 
 	ok := call("Coordinator.Map", args, reply)
+	if ok {
+		return reply, true
+	}
+	return nil, false
+}
+
+func CallReduce() (*ReduceReply, bool) {
+	args := &ReduceArgs{}
+	reply := &ReduceReply{}
+
+	ok := call("Coordinator.Reduce", args, reply)
 	if ok {
 		return reply, true
 	}
