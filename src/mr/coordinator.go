@@ -84,6 +84,7 @@ func (c *Coordinator) Done() bool {
 	ret := false
 
 	// Your code here.
+	// TODO: finish this
 	for _, t := range c.mapTasks {
 		if t.state != 2 {
 			continue
