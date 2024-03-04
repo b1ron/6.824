@@ -6,14 +6,17 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"sync"
 )
 
 type Coordinator struct {
 	// Your definitions here.
+	mu          sync.Mutex // guards the fields below
 	mapTasks    []task
 	reduceTasks []task
-	nReduce     int
-	done        chan bool
+
+	nReduce int
+	done    chan bool
 }
 
 type task struct {
@@ -24,18 +27,25 @@ type task struct {
 
 // Your code here -- RPC handlers for the worker to call.
 
-func (c *Coordinator) Map(_ *MapArgs, reply *MapReply) error {
+func (c *Coordinator) Map(args *MapArgs, reply *MapReply) error {
+	if args.Done {
+		c.mapTasks[reply.ID].state = 2 // another crappy lock?
+		return nil
+	}
+
 	// farmout tasks to workers
 	for i, t := range c.mapTasks {
 		if t.state > 0 {
 			continue
 		}
 
+		c.mu.Lock()
 		reply.ID = i
 		reply.File = t.file
 		reply.NReduce = c.nReduce
 
 		t.state = 1
+		c.mu.Unlock()
 		return nil
 	}
 	return nil

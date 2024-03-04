@@ -43,9 +43,13 @@ func Worker(mapf func(string, string) []KeyValue,
 	// CallExample()
 
 	// CallMap()
-	reply, ok := CallMap()
+	done := false
+	reply, ok := CallMap(done)
 	if !ok {
 		log.Fatalf("call failed!\n")
+	} else {
+		// just for debugging
+		fmt.Printf("reply.File: %v\n", reply.File)
 	}
 
 	file, err := os.Open(reply.File)
@@ -61,7 +65,8 @@ func Worker(mapf func(string, string) []KeyValue,
 	kva := mapf(file.Name(), string(content))
 	sort.Sort(ByKey(kva))
 
-	intermediateBuckets := make(map[int][]KeyValue) // intermediate key-value pairs partitioned into R buckets
+	// intermediate key-value pairs partitioned into R buckets
+	intermediateBuckets := make(map[int][]KeyValue)
 	for _, kv := range kva {
 		reduceTask := ihash(kv.Key) % reply.NReduce
 		intermediateBuckets[reduceTask] = append(intermediateBuckets[reduceTask], kv)
@@ -84,12 +89,19 @@ func Worker(mapf func(string, string) []KeyValue,
 		ofile.Close()
 	}
 
+	// signal to coordinator that the map task is done, kinda stinky
+	done = true
+	_, ok = CallMap(done)
+	if !ok {
+		log.Fatalf("call failed!\n")
+	}
+
 	// CallReduce()
 
 }
 
-func CallMap() (*MapReply, bool) {
-	args := &MapArgs{}
+func CallMap(done bool) (*MapReply, bool) {
+	args := &MapArgs{Done: done}
 	reply := &MapReply{}
 
 	ok := call("Coordinator.Map", args, reply)
