@@ -35,7 +35,9 @@ type MapReply struct {
 	NReduce int // The number of partitions denoted as R in the paper
 }
 
+// TODO: reduce RPC definitions
 type ReduceArgs struct{}
+
 type ReduceReply struct{}
 
 // Cook up a unique-ish UNIX-domain socket name
