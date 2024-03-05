@@ -49,7 +49,7 @@ func Worker(mapf func(string, string) []KeyValue,
 		log.Fatalf("call failed!\n")
 	} else {
 		// just for debugging
-		fmt.Printf("reply.File: %v\n", mapReply.File)
+		fmt.Printf("mapReply.File: %v\n", mapReply.File)
 	}
 
 	file, err := os.Open(mapReply.File)
@@ -72,20 +72,21 @@ func Worker(mapf func(string, string) []KeyValue,
 		intermediateBuckets[reduceTask] = append(intermediateBuckets[reduceTask], kv)
 	}
 
-	for i := 0; i < mapReply.NReduce; i++ {
-		oname := fmt.Sprintf("mr-%v-%v", mapReply.ID, i)
+	mapTaskN := 0
+	for k, kv := range intermediateBuckets {
+		oname := fmt.Sprintf("mr-%v-%v", mapTaskN, k)
 		ofile, err := os.Create(oname)
 		if err != nil {
 			log.Fatalf("cannot create %v", oname)
 		}
+		mapTaskN++
 
 		enc := json.NewEncoder(ofile)
-		for _, kv := range intermediateBuckets[i] {
-			err := enc.Encode(&kv)
-			if err != nil {
-				log.Fatalf("cannot encode %v", kv)
-			}
+		err = enc.Encode(&kv)
+		if err != nil {
+			log.Fatalf("cannot encode %v", kv)
 		}
+
 		ofile.Close()
 	}
 
