@@ -29,7 +29,9 @@ type task struct {
 
 func (c *Coordinator) Map(args *MapArgs, reply *MapReply) error {
 	if args.Done {
-		c.mapTasks[reply.ID].state = 2 // another crappy lock?
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		c.mapTasks[reply.ID].state = 2
 		return nil
 	}
 
@@ -51,8 +53,19 @@ func (c *Coordinator) Map(args *MapArgs, reply *MapReply) error {
 	return nil
 }
 
-func (c *Coordinator) Reduce() error {
+func (c *Coordinator) Reduce(args *ReduceArgs, reply *ReduceReply) error {
 	// TODO: implement
+	for _, t := range c.reduceTasks {
+		if t.state > 0 {
+			continue
+		}
+		c.mu.Lock()
+		reply.File = t.file
+
+		t.state = 1
+		c.mu.Unlock()
+		return nil
+	}
 	return nil
 }
 
@@ -85,6 +98,8 @@ func (c *Coordinator) Done() bool {
 
 	// Your code here.
 	// TODO: finish this
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	for _, t := range c.mapTasks {
 		if t.state != 2 {
 			continue
