@@ -44,17 +44,17 @@ func Worker(mapf func(string, string) []KeyValue,
 
 	// CallMap()
 	done := false
-	reply, ok := CallMap(done)
+	mapReply, ok := CallMap(done)
 	if !ok {
 		log.Fatalf("call failed!\n")
 	} else {
 		// just for debugging
-		fmt.Printf("reply.File: %v\n", reply.File)
+		fmt.Printf("reply.File: %v\n", mapReply.File)
 	}
 
-	file, err := os.Open(reply.File)
+	file, err := os.Open(mapReply.File)
 	if err != nil {
-		log.Fatalf("cannot open %v", reply.File)
+		log.Fatalf("cannot open %v", mapReply.File)
 	}
 	content, err := io.ReadAll(file)
 	if err != nil {
@@ -68,12 +68,12 @@ func Worker(mapf func(string, string) []KeyValue,
 	// intermediate key-value pairs partitioned into R buckets
 	intermediateBuckets := make(map[int][]KeyValue)
 	for _, kv := range kva {
-		reduceTask := ihash(kv.Key) % reply.NReduce
+		reduceTask := ihash(kv.Key) % mapReply.NReduce
 		intermediateBuckets[reduceTask] = append(intermediateBuckets[reduceTask], kv)
 	}
 
-	for i := 0; i < reply.NReduce; i++ {
-		oname := fmt.Sprintf("mr-%v-%v", reply.ID, i)
+	for i := 0; i < mapReply.NReduce; i++ {
+		oname := fmt.Sprintf("mr-%v-%v", mapReply.ID, i)
 		ofile, err := os.Create(oname)
 		if err != nil {
 			log.Fatalf("cannot create %v", oname)
@@ -96,7 +96,17 @@ func Worker(mapf func(string, string) []KeyValue,
 		log.Fatalf("call failed!\n")
 	}
 
+	// XXX we need to wait until all map tasks are done before we can start reduce tasks
+
 	// CallReduce()
+	done = false
+	reduceReply, ok := CallReduce(done)
+	if !ok {
+		log.Fatalf("call failed!\n")
+	} else {
+		// just for debugging
+		fmt.Printf("reduceReply.File: %v\n", reduceReply.File)
+	}
 
 }
 
@@ -112,8 +122,8 @@ func CallMap(done bool) (*MapReply, bool) {
 }
 
 // TODO: implement
-func CallReduce() (*ReduceReply, bool) {
-	args := &ReduceArgs{}
+func CallReduce(done bool) (*ReduceReply, bool) {
+	args := &ReduceArgs{Done: done}
 	reply := &ReduceReply{}
 
 	ok := call("Coordinator.Reduce", args, reply)

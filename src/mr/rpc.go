@@ -25,9 +25,7 @@ type ExampleReply struct {
 }
 
 // Add your RPC definitions here.
-type MapArgs struct {
-	Done bool
-}
+type MapArgs struct{ Done bool }
 
 type MapReply struct {
 	ID      int
@@ -36,9 +34,11 @@ type MapReply struct {
 }
 
 // TODO: reduce RPC definitions
-type ReduceArgs struct{}
+type ReduceArgs struct {
+	Done bool
+}
 
-type ReduceReply struct{}
+type ReduceReply struct{ File string }
 
 // Cook up a unique-ish UNIX-domain socket name
 // in /var/tmp, for the coordinator.
