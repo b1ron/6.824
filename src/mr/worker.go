@@ -73,8 +73,8 @@ func Worker(mapf func(string, string) []KeyValue,
 	}
 
 	mapTaskN := 0
-	for k, kv := range intermediateBuckets {
-		oname := fmt.Sprintf("mr-%v-%v", mapTaskN, k)
+	for reduceTaskN, kv := range intermediateBuckets {
+		oname := fmt.Sprintf("mr-%v-%v", mapTaskN, reduceTaskN)
 		ofile, err := os.Create(oname)
 		if err != nil {
 			log.Fatalf("cannot create %v", oname)
