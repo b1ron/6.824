@@ -34,9 +34,7 @@ type MapReply struct {
 }
 
 // TODO: reduce RPC definitions
-type ReduceArgs struct {
-	Done bool
-}
+type ReduceArgs struct{ Done bool }
 
 type ReduceReply struct{ File string }
 
