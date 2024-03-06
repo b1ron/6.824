@@ -49,12 +49,12 @@ func Worker(mapf func(string, string) []KeyValue,
 		log.Fatalf("call failed!\n")
 	} else {
 		// just for debugging
-		fmt.Printf("mapReply.File: %v\n", mapReply.File)
+		fmt.Printf("mapReply.Filename: %v\n", mapReply.Filename)
 	}
 
-	file, err := os.Open(mapReply.File)
+	file, err := os.Open(mapReply.Filename)
 	if err != nil {
-		log.Fatalf("cannot open %v", mapReply.File)
+		log.Fatalf("cannot open %v", mapReply.Filename)
 	}
 	content, err := io.ReadAll(file)
 	if err != nil {
@@ -106,7 +106,7 @@ func Worker(mapf func(string, string) []KeyValue,
 		log.Fatalf("call failed!\n")
 	} else {
 		// just for debugging
-		fmt.Printf("reduceReply.File: %v\n", reduceReply.File)
+		fmt.Printf("reduceReply.ID: %v\n", reduceReply.ID)
 	}
 
 }

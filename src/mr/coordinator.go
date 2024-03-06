@@ -43,7 +43,7 @@ func (c *Coordinator) Map(args *MapArgs, reply *MapReply) error {
 
 		c.mu.Lock()
 		reply.ID = i
-		reply.File = t.file
+		reply.Filename = t.file
 		reply.NReduce = c.nReduce
 
 		t.state = 1
@@ -54,13 +54,12 @@ func (c *Coordinator) Map(args *MapArgs, reply *MapReply) error {
 }
 
 func (c *Coordinator) Reduce(args *ReduceArgs, reply *ReduceReply) error {
-	// TODO: implement
 	for _, t := range c.reduceTasks {
 		if t.state > 0 {
 			continue
 		}
 		c.mu.Lock()
-		reply.File = t.file
+		reply.ID = t.id
 
 		t.state = 1
 		c.mu.Unlock()
@@ -97,7 +96,7 @@ func (c *Coordinator) Done() bool {
 	ret := false
 
 	// Your code here.
-	// TODO: finish this
+	// TODO: finish this, this is just a placeholder
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, t := range c.mapTasks {

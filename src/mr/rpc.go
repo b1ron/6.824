@@ -28,15 +28,17 @@ type ExampleReply struct {
 type MapArgs struct{ Done bool }
 
 type MapReply struct {
-	ID      int
-	File    string
-	NReduce int // The number of partitions denoted as R in the paper
+	ID       int
+	Filename string
+	NReduce  int // The number of partitions denoted as R in the paper
 }
 
 // TODO: reduce RPC definitions
 type ReduceArgs struct{ Done bool }
 
-type ReduceReply struct{ File string }
+type ReduceReply struct {
+	ID int
+}
 
 // Cook up a unique-ish UNIX-domain socket name
 // in /var/tmp, for the coordinator.
