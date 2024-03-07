@@ -31,6 +31,7 @@ type MapReply struct {
 	ID       int
 	Filename string
 	NReduce  int // The number of partitions denoted as R in the paper
+	Done     chan bool
 }
 
 // TODO: reduce RPC definitions

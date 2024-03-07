@@ -43,8 +43,7 @@ func Worker(mapf func(string, string) []KeyValue,
 	// CallExample()
 
 	// CallMap()
-	done := false
-	mapReply, ok := CallMap(done)
+	mapReply, ok := CallMap()
 	if !ok {
 		log.Fatalf("call failed!\n")
 	} else {
@@ -90,18 +89,11 @@ func Worker(mapf func(string, string) []KeyValue,
 		ofile.Close()
 	}
 
-	// signal to coordinator that the map task is done, kinda stinky
-	done = true
-	_, ok = CallMap(done)
-	if !ok {
-		log.Fatalf("call failed!\n")
-	}
-
-	// XXX we need to wait until all map tasks are done before we can start reduce tasks
+	// we need to wait until all map tasks are done before we can start reduce tasks
+	<-mapReply.Done
 
 	// CallReduce()
-	done = false
-	reduceReply, ok := CallReduce(done)
+	reduceReply, ok := CallReduce()
 	if !ok {
 		log.Fatalf("call failed!\n")
 	} else {
@@ -111,8 +103,8 @@ func Worker(mapf func(string, string) []KeyValue,
 
 }
 
-func CallMap(done bool) (*MapReply, bool) {
-	args := &MapArgs{Done: done}
+func CallMap() (*MapReply, bool) {
+	args := &MapArgs{}
 	reply := &MapReply{}
 
 	ok := call("Coordinator.Map", args, reply)
@@ -123,8 +115,8 @@ func CallMap(done bool) (*MapReply, bool) {
 }
 
 // TODO: implement
-func CallReduce(done bool) (*ReduceReply, bool) {
-	args := &ReduceArgs{Done: done}
+func CallReduce() (*ReduceReply, bool) {
+	args := &ReduceArgs{}
 	reply := &ReduceReply{}
 
 	ok := call("Coordinator.Reduce", args, reply)

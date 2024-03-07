@@ -16,7 +16,7 @@ type Coordinator struct {
 	reduceTasks []task
 
 	nReduce int
-	done    chan bool
+	nMap    int
 }
 
 type task struct {
@@ -32,6 +32,14 @@ func (c *Coordinator) Map(args *MapArgs, reply *MapReply) error {
 		c.mu.Lock()
 		defer c.mu.Unlock()
 		c.mapTasks[reply.ID].state = 2
+		c.nMap--
+
+		if reply.Done == nil {
+			reply.Done = make(chan bool)
+		}
+		if c.nMap == 0 {
+			reply.Done <- true
+		}
 		return nil
 	}
 
@@ -121,6 +129,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c.mapTasks = []task{}
 	for i, file := range files {
 		c.mapTasks = append(c.mapTasks, task{i, 0, file})
+		c.nMap++
 	}
 	c.nReduce = nReduce
 
