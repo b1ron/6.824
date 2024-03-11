@@ -43,7 +43,9 @@ func Worker(mapf func(string, string) []KeyValue,
 	// CallExample()
 
 	// CallMap()
-	mapReply, ok := CallMap()
+
+	done := false
+	mapReply, ok := CallMap(done)
 	if !ok {
 		log.Fatalf("call failed!\n")
 	} else {
@@ -103,8 +105,8 @@ func Worker(mapf func(string, string) []KeyValue,
 
 }
 
-func CallMap() (*MapReply, bool) {
-	args := &MapArgs{}
+func CallMap(done bool) (*MapReply, bool) {
+	args := &MapArgs{Done: done}
 	reply := &MapReply{}
 
 	ok := call("Coordinator.Map", args, reply)

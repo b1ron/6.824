@@ -1,6 +1,7 @@
 package mr
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -12,7 +13,7 @@ import (
 type Coordinator struct {
 	// Your definitions here.
 	mu          sync.Mutex // guards the fields below
-	mapTasks    []task
+	mapTasks    []*task
 	reduceTasks []task
 
 	nReduce int
@@ -45,6 +46,7 @@ func (c *Coordinator) Map(args *MapArgs, reply *MapReply) error {
 
 	// farmout tasks to workers
 	for i, t := range c.mapTasks {
+		fmt.Printf("t.mapTasks: %v\n", c.mapTasks)
 		if t.state > 0 {
 			continue
 		}
@@ -126,9 +128,9 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	// Your code here.
 	// the coordinator will keep track of the state of each task
 	// the coordinator can re-assign tasks to workers if they fail to complete them within a certain time frame (e.g. 10 seconds)
-	c.mapTasks = []task{}
+	c.mapTasks = []*task{}
 	for i, file := range files {
-		c.mapTasks = append(c.mapTasks, task{i, 0, file})
+		c.mapTasks = append(c.mapTasks, &task{i, 0, file})
 		c.nMap++
 	}
 	c.nReduce = nReduce
