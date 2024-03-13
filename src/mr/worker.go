@@ -106,7 +106,7 @@ func Worker(mapf func(string, string) []KeyValue,
 		fmt.Printf("reduceReply.ID: %v\n", reduceReply.ID)
 	}
 
-	// cooringator will send a signal when all map tasks are done
+	// coordinator will send a signal when all map tasks are done
 	<-reduceReply.Done
 	for i := 0; i < nReduce; i++ {
 		name := fmt.Sprintf("mr-%v-%v", i, reduceReply.ID)
