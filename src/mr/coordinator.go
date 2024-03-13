@@ -14,7 +14,9 @@ type Coordinator struct {
 	// Your definitions here.
 	mu          sync.Mutex // guards the fields below
 	mapTasks    []*task
-	reduceTasks []task
+	reduceTasks []*task
+
+	done chan bool
 
 	nReduce int
 	nMap    int
@@ -32,49 +34,47 @@ func (c *Coordinator) Map(args *MapArgs, reply *MapReply) error {
 	if args.Done {
 		c.mu.Lock()
 		defer c.mu.Unlock()
-		c.mapTasks[reply.ID].state = 2
 		c.nMap--
-
-		if reply.Done == nil {
-			reply.Done = make(chan bool)
-		}
-		if c.nMap == 0 {
-			reply.Done <- true
-		}
+		fmt.Printf("nMap: %d\n", c.nMap)
+		c.mapTasks[reply.ID].state = 2
 		return nil
 	}
 
 	// farmout tasks to workers
 	for i, t := range c.mapTasks {
-		fmt.Printf("t.mapTasks: %v\n", c.mapTasks)
+		c.mu.Lock()
+		defer c.mu.Unlock()
 		if t.state > 0 {
 			continue
 		}
 
-		c.mu.Lock()
 		reply.ID = i
 		reply.Filename = t.file
 		reply.NReduce = c.nReduce
 
 		t.state = 1
-		c.mu.Unlock()
 		return nil
 	}
 	return nil
 }
 
 func (c *Coordinator) Reduce(args *ReduceArgs, reply *ReduceReply) error {
-	for _, t := range c.reduceTasks {
-		if t.state > 0 {
-			continue
-		}
+	// or
+	if c.nMap == 0 {
 		c.mu.Lock()
-		reply.ID = t.id
+		defer c.mu.Unlock()
+		for i, t := range c.reduceTasks {
+			if t.state > 0 {
+				continue
+			}
+			reply.ID = i
+			c.reduceTasks[i].state = 1
+		}
 
-		t.state = 1
-		c.mu.Unlock()
+		reply.NMap = c.nMap
 		return nil
 	}
+
 	return nil
 }
 
@@ -134,6 +134,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 		c.nMap++
 	}
 	c.nReduce = nReduce
+	c.reduceTasks = make([]*task, nReduce)
 
 	c.server()
 	return &c

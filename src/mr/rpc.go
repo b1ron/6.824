@@ -31,14 +31,15 @@ type MapReply struct {
 	ID       int
 	Filename string
 	NReduce  int // The number of partitions denoted as R in the paper
-	Done     chan bool
 }
 
 // TODO: reduce RPC definitions
 type ReduceArgs struct{ Done bool }
 
 type ReduceReply struct {
-	ID int
+	NMap int
+	ID   int
+	Done chan bool
 }
 
 // Cook up a unique-ish UNIX-domain socket name

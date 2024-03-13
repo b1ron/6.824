@@ -42,8 +42,6 @@ func Worker(mapf func(string, string) []KeyValue,
 	// uncomment to send the Example RPC to the coordinator.
 	// CallExample()
 
-	// CallMap()
-
 	done := false
 	mapReply, ok := CallMap(done)
 	if !ok {
@@ -69,8 +67,8 @@ func Worker(mapf func(string, string) []KeyValue,
 	// intermediate key-value pairs partitioned into R buckets
 	intermediateBuckets := make(map[int][]KeyValue)
 	for _, kv := range kva {
-		reduceTask := ihash(kv.Key) % mapReply.NReduce
-		intermediateBuckets[reduceTask] = append(intermediateBuckets[reduceTask], kv)
+		bucket := ihash(kv.Key) % mapReply.NReduce
+		intermediateBuckets[bucket] = append(intermediateBuckets[bucket], kv)
 	}
 
 	mapTaskN := 0
@@ -91,11 +89,14 @@ func Worker(mapf func(string, string) []KeyValue,
 		ofile.Close()
 	}
 
-	// we need to wait until all map tasks are done before we can start reduce tasks
-	<-mapReply.Done
+	done = true
+	CallMap(done)
+	fmt.Printf("mapReply.Done: %v\n", done)
 
-	// CallReduce()
+	// we need to wait until all map tasks are done before we can start reduce tasks
 	reduceReply, ok := CallReduce()
+	fmt.Printf("reduceReply.nMap: %d\n", reduceReply.NMap)
+
 	if !ok {
 		log.Fatalf("call failed!\n")
 	} else {
@@ -103,6 +104,8 @@ func Worker(mapf func(string, string) []KeyValue,
 		fmt.Printf("reduceReply.ID: %v\n", reduceReply.ID)
 	}
 
+	for i := 0; i < mapReply.NReduce; i++ {
+	}
 }
 
 func CallMap(done bool) (*MapReply, bool) {
