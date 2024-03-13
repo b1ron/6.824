@@ -64,10 +64,12 @@ func Worker(mapf func(string, string) []KeyValue,
 	kva := mapf(file.Name(), string(content))
 	sort.Sort(ByKey(kva))
 
+	nReduce := mapReply.NReduce
+
 	// intermediate key-value pairs partitioned into R buckets
 	intermediateBuckets := make(map[int][]KeyValue)
 	for _, kv := range kva {
-		bucket := ihash(kv.Key) % mapReply.NReduce
+		bucket := ihash(kv.Key) % nReduce
 		intermediateBuckets[bucket] = append(intermediateBuckets[bucket], kv)
 	}
 
@@ -104,7 +106,31 @@ func Worker(mapf func(string, string) []KeyValue,
 		fmt.Printf("reduceReply.ID: %v\n", reduceReply.ID)
 	}
 
-	for i := 0; i < mapReply.NReduce; i++ {
+	// cooringator will send a signal when all map tasks are done
+	<-reduceReply.Done
+	for i := 0; i < nReduce; i++ {
+		name := fmt.Sprintf("mr-%v-%v", i, reduceReply.ID)
+		file, err := os.Open(name)
+		if err != nil {
+			log.Fatalf("cannot open %v", mapReply.Filename)
+		}
+		dec := json.NewDecoder(file)
+		for {
+			var kv KeyValue
+			if err := dec.Decode(&kv); err != nil {
+				break
+			}
+
+			fmt.Println(kv.Key, kv.Value)
+		}
+		file.Close()
+
+		name = fmt.Sprintf("mr-out-%v", i)
+		ofile, err := os.Create(name)
+		if err != nil {
+			log.Fatalf("cannot create %v", name)
+		}
+		fmt.Printf("reduceReply.file: %v\n", ofile.Name())
 	}
 }
 

@@ -16,8 +16,6 @@ type Coordinator struct {
 	mapTasks    []*task
 	reduceTasks []*task
 
-	done chan bool
-
 	nReduce int
 	nMap    int
 }
@@ -71,6 +69,8 @@ func (c *Coordinator) Reduce(args *ReduceArgs, reply *ReduceReply) error {
 			c.reduceTasks[i].state = 1
 		}
 
+		reply.Done = make(chan bool)
+		reply.Done <- true
 		reply.NMap = c.nMap
 		return nil
 	}
@@ -106,15 +106,6 @@ func (c *Coordinator) Done() bool {
 	ret := false
 
 	// Your code here.
-	// TODO: finish this, this is just a placeholder
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	for _, t := range c.mapTasks {
-		if t.state != 2 {
-			continue
-		}
-		ret = true
-	}
 
 	return ret
 }

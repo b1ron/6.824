@@ -39,7 +39,7 @@ type ReduceArgs struct{ Done bool }
 type ReduceReply struct {
 	NMap int
 	ID   int
-	Done chan bool
+	Done chan bool // indicates when all map tasks are done
 }
 
 // Cook up a unique-ish UNIX-domain socket name
