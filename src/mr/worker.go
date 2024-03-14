@@ -42,18 +42,26 @@ func Worker(mapf func(string, string) []KeyValue,
 	// uncomment to send the Example RPC to the coordinator.
 	// CallExample()
 
-	done := false
-	mapReply, ok := CallMap(done)
-	if !ok {
-		log.Fatalf("call failed!\n")
-	} else {
-		// just for debugging
-		fmt.Printf("mapReply.Filename: %v\n", mapReply.Filename)
+	for {
+		mapReply, ok := CallMap()
+		if !ok {
+			log.Fatalf("call failed!\n")
+		}
+
+		if mapReply.Filename == "" {
+			break
+		}
+
+		doMap(mapReply.Filename, mapReply.NReduce, mapf)
 	}
 
-	file, err := os.Open(mapReply.Filename)
+	fmt.Println("map phase done")
+}
+
+func doMap(filename string, nReduce int, mapf func(string, string) []KeyValue) error {
+	file, err := os.Open(filename)
 	if err != nil {
-		log.Fatalf("cannot open %v", mapReply.Filename)
+		log.Fatalf("cannot open %v", filename)
 	}
 	content, err := io.ReadAll(file)
 	if err != nil {
@@ -63,8 +71,6 @@ func Worker(mapf func(string, string) []KeyValue,
 
 	kva := mapf(file.Name(), string(content))
 	sort.Sort(ByKey(kva))
-
-	nReduce := mapReply.NReduce
 
 	// intermediate key-value pairs partitioned into R buckets
 	intermediateBuckets := make(map[int][]KeyValue)
@@ -90,52 +96,11 @@ func Worker(mapf func(string, string) []KeyValue,
 
 		ofile.Close()
 	}
-
-	done = true
-	CallMap(done)
-	fmt.Printf("mapReply.Done: %v\n", done)
-
-	// we need to wait until all map tasks are done before we can start reduce tasks
-	reduceReply, ok := CallReduce()
-	fmt.Printf("reduceReply.nMap: %d\n", reduceReply.NMap)
-
-	if !ok {
-		log.Fatalf("call failed!\n")
-	} else {
-		// just for debugging
-		fmt.Printf("reduceReply.ID: %v\n", reduceReply.ID)
-	}
-
-	// coordinator will send a signal when all map tasks are done
-	<-reduceReply.Done
-	for i := 0; i < nReduce; i++ {
-		name := fmt.Sprintf("mr-%v-%v", i, reduceReply.ID)
-		file, err := os.Open(name)
-		if err != nil {
-			log.Fatalf("cannot open %v", mapReply.Filename)
-		}
-		dec := json.NewDecoder(file)
-		for {
-			var kv KeyValue
-			if err := dec.Decode(&kv); err != nil {
-				break
-			}
-
-			fmt.Println(kv.Key, kv.Value)
-		}
-		file.Close()
-
-		name = fmt.Sprintf("mr-out-%v", i)
-		ofile, err := os.Create(name)
-		if err != nil {
-			log.Fatalf("cannot create %v", name)
-		}
-		fmt.Printf("reduceReply.file: %v\n", ofile.Name())
-	}
+	return nil
 }
 
-func CallMap(done bool) (*MapReply, bool) {
-	args := &MapArgs{Done: done}
+func CallMap() (*MapReply, bool) {
+	args := &MapArgs{}
 	reply := &MapReply{}
 
 	ok := call("Coordinator.Map", args, reply)

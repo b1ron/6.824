@@ -1,7 +1,6 @@
 package mr
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -29,19 +28,10 @@ type task struct {
 // Your code here -- RPC handlers for the worker to call.
 
 func (c *Coordinator) Map(args *MapArgs, reply *MapReply) error {
-	if args.Done {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		c.nMap--
-		fmt.Printf("nMap: %d\n", c.nMap)
-		c.mapTasks[reply.ID].state = 2
-		return nil
-	}
-
 	// farmout tasks to workers
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	for i, t := range c.mapTasks {
-		c.mu.Lock()
-		defer c.mu.Unlock()
 		if t.state > 0 {
 			continue
 		}
@@ -68,10 +58,6 @@ func (c *Coordinator) Reduce(args *ReduceArgs, reply *ReduceReply) error {
 			reply.ID = i
 			c.reduceTasks[i].state = 1
 		}
-
-		reply.Done = make(chan bool)
-		reply.Done <- true
-		reply.NMap = c.nMap
 		return nil
 	}
 

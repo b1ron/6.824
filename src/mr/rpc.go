@@ -25,7 +25,7 @@ type ExampleReply struct {
 }
 
 // Add your RPC definitions here.
-type MapArgs struct{ Done bool }
+type MapArgs struct{}
 
 type MapReply struct {
 	ID       int
@@ -34,12 +34,11 @@ type MapReply struct {
 }
 
 // TODO: reduce RPC definitions
-type ReduceArgs struct{ Done bool }
+type ReduceArgs struct{}
 
 type ReduceReply struct {
 	NMap int
 	ID   int
-	Done chan bool // indicates when all map tasks are done
 }
 
 // Cook up a unique-ish UNIX-domain socket name
