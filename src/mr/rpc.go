@@ -17,7 +17,10 @@ const (
 )
 
 // Add your RPC definitions here.
-type Args struct{ PID int }
+type Args struct {
+	PID   int
+	Phase int
+}
 
 type Reply struct {
 	Phase    int

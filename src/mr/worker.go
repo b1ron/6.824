@@ -58,7 +58,7 @@ func Worker(mapf func(string, string) []KeyValue,
 }
 
 func request() (*Reply, bool) {
-	args := &Args{os.Getpid()} // for registering the worker
+	args := &Args{PID: os.Getpid()} // for registering the worker
 	reply := &Reply{}
 	ok := call("Coordinator.Request", args, reply)
 	if ok {
@@ -69,9 +69,12 @@ func request() (*Reply, bool) {
 
 // tell the coordinator that the task is done and the worker is ready for another task
 func complete(phase int, pid int) {
-	args := &Args{PID: pid}
-	reply := &Reply{Phase: phase}
-	call("Coordinator.Complete", args, reply)
+	args := &Args{
+		PID:   pid,
+		Phase: phase,
+	}
+	reply := &Reply{}
+	call("Coordinator.Complete", args, reply) // TODO
 }
 
 func doMap(filename string, nReduce int, mapf func(string, string) []KeyValue) error {
