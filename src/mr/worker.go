@@ -39,23 +39,39 @@ func Worker(mapf func(string, string) []KeyValue,
 
 	// Your worker implementation here.
 
-	// uncomment to send the Example RPC to the coordinator.
-	// CallExample()
-
 	for {
-		mapReply, ok := CallMap()
+		reply, ok := request()
 		if !ok {
-			log.Fatalf("call failed!\n")
-		}
-
-		if mapReply.Filename == "" {
 			break
 		}
 
-		doMap(mapReply.Filename, mapReply.NReduce, mapf)
+		switch reply.Phase {
+		case Map:
+			err := doMap(reply.Filename, reply.NReduce, mapf)
+			if err != nil {
+				log.Fatalf("doMap failed") // TODO: handle errors properly
+			}
+		case Reduce:
+		}
 	}
 
-	fmt.Println("map phase done")
+}
+
+func request() (*Reply, bool) {
+	args := &Args{os.Getpid()} // for registering the worker
+	reply := &Reply{}
+	ok := call("Coordinator.Request", args, reply)
+	if ok {
+		return reply, true
+	}
+	return nil, false
+}
+
+// tell the coordinator that the task is done and the worker is ready for another task
+func complete(phase int, pid int) {
+	args := &Args{PID: pid}
+	reply := &Reply{Phase: phase}
+	call("Coordinator.Complete", args, reply)
 }
 
 func doMap(filename string, nReduce int, mapf func(string, string) []KeyValue) error {
@@ -73,20 +89,20 @@ func doMap(filename string, nReduce int, mapf func(string, string) []KeyValue) e
 	sort.Sort(ByKey(kva))
 
 	// intermediate key-value pairs partitioned into R buckets
-	intermediateBuckets := make(map[int][]KeyValue)
+	buckets := make(map[int][]KeyValue)
 	for _, kv := range kva {
 		bucket := ihash(kv.Key) % nReduce
-		intermediateBuckets[bucket] = append(intermediateBuckets[bucket], kv)
+		buckets[bucket] = append(buckets[bucket], kv)
 	}
 
-	mapTaskN := 0
-	for reduceTaskN, kv := range intermediateBuckets {
-		oname := fmt.Sprintf("mr-%v-%v", mapTaskN, reduceTaskN)
+	mapTask := 0
+	for reduceTask, kv := range buckets {
+		oname := fmt.Sprintf("mr-%v-%v", mapTask, reduceTask)
 		ofile, err := os.Create(oname)
 		if err != nil {
 			log.Fatalf("cannot create %v", oname)
 		}
-		mapTaskN++
+		mapTask++
 
 		enc := json.NewEncoder(ofile)
 		err = enc.Encode(&kv)
@@ -99,54 +115,56 @@ func doMap(filename string, nReduce int, mapf func(string, string) []KeyValue) e
 	return nil
 }
 
-func CallMap() (*MapReply, bool) {
-	args := &MapArgs{}
-	reply := &MapReply{}
+func doReduce(reduceTask int, reducef func(string, []string) string) error {
+	var intermediate = []KeyValue{}
 
-	ok := call("Coordinator.Map", args, reply)
-	if ok {
-		return reply, true
+	for mapTask := 0; mapTask < reduceTask; mapTask++ {
+		filename := fmt.Sprintf("mr-%v-%v", mapTask, reduceTask)
+		file, err := os.Open(filename)
+		if err != nil {
+			log.Fatalf("cannot open %v", filename)
+		}
+		mapTask++
+
+		var kv []KeyValue
+		dec := json.NewDecoder(file)
+		for {
+			err := dec.Decode(&kv)
+			if err != nil {
+				break
+			}
+			intermediate = append(intermediate, kv...)
+		}
 	}
-	return nil, false
-}
 
-// TODO: implement
-func CallReduce() (*ReduceReply, bool) {
-	args := &ReduceArgs{}
-	reply := &ReduceReply{}
+	sort.Sort(ByKey(intermediate))
 
-	ok := call("Coordinator.Reduce", args, reply)
-	if ok {
-		return reply, true
+	oname := fmt.Sprintf("mr-out-%v", reduceTask)
+	ofile, err := os.Create(oname)
+	if err != nil {
+		log.Fatalf("cannot create %v", ofile)
 	}
-	return nil, false
-}
 
-// example function to show how to make an RPC call to the coordinator.
-//
-// the RPC argument and reply types are defined in rpc.go.
-func CallExample() {
+	i := 0
+	for i < len(intermediate) {
+		j := i + 1
+		for j < len(intermediate) && intermediate[j].Key == intermediate[i].Key {
+			j++
+		}
+		var values []string
+		for k := i; k < j; k++ {
+			values = append(values, intermediate[k].Value)
+		}
+		output := reducef(intermediate[i].Key, values)
 
-	// declare an argument structure.
-	args := ExampleArgs{}
+		fmt.Fprintf(ofile, "%v %v\n", intermediate[i].Key, output)
 
-	// fill in the argument(s).
-	args.X = 99
-
-	// declare a reply structure.
-	reply := ExampleReply{}
-
-	// send the RPC request, wait for the reply.
-	// the "Coordinator.Example" tells the
-	// receiving server that we'd like to call
-	// the Example() method of struct Coordinator.
-	ok := call("Coordinator.Example", &args, &reply)
-	if ok {
-		// reply.Y should be 100.
-		fmt.Printf("reply.Y %v\n", reply.Y)
-	} else {
-		fmt.Printf("call failed!\n")
+		i = j
 	}
+
+	ofile.Close()
+
+	return nil
 }
 
 // send an RPC request to the coordinator, wait for the response.

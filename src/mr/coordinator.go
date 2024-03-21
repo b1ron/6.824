@@ -7,6 +7,7 @@ import (
 	"net/rpc"
 	"os"
 	"sync"
+	"time"
 )
 
 type Coordinator struct {
@@ -14,9 +15,16 @@ type Coordinator struct {
 	mu          sync.Mutex // guards the fields below
 	mapTasks    []*task
 	reduceTasks []*task
+	workers     map[int]*worker
 
 	nReduce int
 	nMap    int
+}
+
+type worker struct {
+	pid  int
+	t    time.Time
+	task *task
 }
 
 type task struct {
@@ -25,50 +33,58 @@ type task struct {
 	file  string
 }
 
-// Your code here -- RPC handlers for the worker to call.
-
-func (c *Coordinator) Map(args *MapArgs, reply *MapReply) error {
-	// farmout tasks to workers
+func (c *Coordinator) register(pid int, task *task) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for i, t := range c.mapTasks {
-		if t.state > 0 {
-			continue
-		}
-
-		reply.ID = i
-		reply.Filename = t.file
-		reply.NReduce = c.nReduce
-
-		t.state = 1
-		return nil
-	}
-	return nil
+	c.workers[pid] = &worker{pid, time.Now(), task}
 }
 
-func (c *Coordinator) Reduce(args *ReduceArgs, reply *ReduceReply) error {
-	// or
-	if c.nMap == 0 {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		for i, t := range c.reduceTasks {
+func (c *Coordinator) workerFailed() (bool, int) {
+	for pid, w := range c.workers {
+		if time.Since(w.t) > 10*time.Second {
+			return true, pid
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return false, 0
+}
+
+// Your code here -- RPC handlers for the worker to call.
+
+func (c *Coordinator) Request(args *Args, reply *Reply) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.nMap > 0 {
+		// farmout map tasks
+		reply.Phase = Map
+
+		for i, t := range c.mapTasks {
 			if t.state > 0 {
 				continue
 			}
+
+			c.register(args.PID, t)
+
+			reply.NMap = c.nMap
 			reply.ID = i
-			c.reduceTasks[i].state = 1
+			reply.Filename = t.file
+			reply.NReduce = c.nReduce
+
+			t.state = 1
+			return nil
 		}
-		return nil
 	}
 
-	return nil
-}
-
-// an example RPC handler.
-//
-// the RPC argument and reply types are defined in rpc.go.
-func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
-	reply.Y = args.X + 1
+	// reduce tasks
+	reply.Phase = Reduce
+	for i, t := range c.reduceTasks {
+		if t.state > 0 {
+			continue
+		}
+		reply.ID = i
+		c.reduceTasks[i].state = 1
+	}
 	return nil
 }
 
@@ -112,6 +128,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	}
 	c.nReduce = nReduce
 	c.reduceTasks = make([]*task, nReduce)
+	c.workers = make(map[int]*worker)
 
 	c.server()
 	return &c

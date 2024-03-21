@@ -11,34 +11,20 @@ import (
 	"strconv"
 )
 
-//
-// example to show how to declare the arguments
-// and reply for an RPC.
-//
-
-type ExampleArgs struct {
-	X int
-}
-
-type ExampleReply struct {
-	Y int
-}
+const (
+	Map    = 0
+	Reduce = 1
+)
 
 // Add your RPC definitions here.
-type MapArgs struct{}
+type Args struct{ PID int }
 
-type MapReply struct {
+type Reply struct {
+	Phase    int
 	ID       int
 	Filename string
 	NReduce  int // The number of partitions denoted as R in the paper
-}
-
-// TODO: reduce RPC definitions
-type ReduceArgs struct{}
-
-type ReduceReply struct {
-	NMap int
-	ID   int
+	NMap     int
 }
 
 // Cook up a unique-ish UNIX-domain socket name
