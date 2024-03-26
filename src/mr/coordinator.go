@@ -56,7 +56,6 @@ func (c *Coordinator) workerFailed() (bool, *worker) {
 		if time.Since(w.t) > 10*time.Second {
 			return true, w
 		}
-		time.Sleep(1 * time.Second)
 	}
 	return false, nil
 }
