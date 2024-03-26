@@ -55,11 +55,16 @@ func Worker(mapf func(string, string) []KeyValue,
 			if err != nil {
 				log.Fatalf("doMap failed")
 			}
+			if ok := complete(Map, reply.PID); !ok {
+				log.Fatalf("call failed")
+			}
+			fmt.Printf("Map task %v done\n", reply.ID)
 		case Reduce:
 			err := doReduce(reply.ID, reducef)
 			if err != nil {
 				log.Fatalf("doReduce failed")
 			}
+			fmt.Printf("Reduce task %v done\n", reply.ID)
 		}
 	}
 
@@ -76,13 +81,14 @@ func request() (*Reply, bool) {
 }
 
 // tell the coordinator that the task is done and the worker is ready for another task
-func complete(phase int, pid int) {
+func complete(phase int, pid int) bool {
 	args := &Args{
 		PID:   pid,
 		Phase: phase,
 	}
 	reply := &Reply{}
-	call("Coordinator.Complete", args, reply) // TODO
+	ok := call("Coordinator.Complete", args, reply)
+	return ok
 }
 
 func doMap(filename string, nReduce int, mapf func(string, string) []KeyValue) error {
@@ -124,7 +130,6 @@ func doMap(filename string, nReduce int, mapf func(string, string) []KeyValue) e
 		ofile.Close()
 	}
 
-	fmt.Printf("Map task %v done\n", mapTask)
 	return nil
 }
 

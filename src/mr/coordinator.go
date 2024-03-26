@@ -86,10 +86,11 @@ func (c *Coordinator) Request(args *Args, reply *Reply) error {
 			c.register(args.PID, t, Map)
 
 			reply.Phase = Map
-			reply.NMap = c.nMap
 			reply.ID = i
+			reply.PID = args.PID
 			reply.Filename = t.file
 			reply.NReduce = c.nReduce
+			reply.NMap = c.nMap
 
 			t.state = 1
 			return nil
@@ -108,12 +109,23 @@ func (c *Coordinator) Request(args *Args, reply *Reply) error {
 		c.register(args.PID, t, Reduce)
 
 		reply.ID = i
-		c.reduceTasks[i].state = 1
+		t.state = 1
 	}
 	return nil
 }
 
 func (c *Coordinator) Complete(args *Args, reply *Reply) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	w := c.workers[args.PID]
+	switch w.phase {
+	case Map:
+		c.mapTasks[w.task.id].state = 2
+		c.nMap--
+	case Reduce:
+		c.reduceTasks[w.task.id].state = 2
+	}
 	return nil
 }
 

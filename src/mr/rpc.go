@@ -25,6 +25,7 @@ type Args struct {
 type Reply struct {
 	Phase    int
 	ID       int
+	PID      int
 	Filename string
 	NReduce  int // The number of partitions denoted as R in the paper
 	NMap     int
