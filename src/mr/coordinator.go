@@ -47,8 +47,14 @@ func (c *Coordinator) register(pid int, task *task, phase int) {
 }
 
 // XXX it's up to the caller to lock before calling this
-func (c *Coordinator) unregister(pid int) {
-	delete(c.workers, pid)
+func (c *Coordinator) unregister(w *worker) {
+	switch w.phase {
+	case Map:
+		c.mapTasks[w.task.id].state = 0
+	case Reduce:
+		c.reduceTasks[w.task.id].state = 0
+	}
+	delete(c.workers, w.pid)
 }
 
 func (c *Coordinator) workerFailed() (bool, *worker) {
@@ -67,13 +73,7 @@ func (c *Coordinator) Request(args *Args, reply *Reply) error {
 	defer c.mu.Unlock()
 
 	if failed, w := c.workerFailed(); failed {
-		c.unregister(w.pid)
-		switch w.phase {
-		case Map:
-			c.mapTasks[w.task.id].state = 0
-		case Reduce:
-			c.reduceTasks[w.task.id].state = 0
-		}
+		c.unregister(w)
 	}
 
 	if c.nMap > 0 {
