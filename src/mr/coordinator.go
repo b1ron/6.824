@@ -22,8 +22,10 @@ type Coordinator struct {
 }
 
 type worker struct {
-	t    time.Time
-	task *task
+	phase int
+	pid   int
+	t     time.Time
+	task  *task
 }
 
 type task struct {
@@ -32,28 +34,31 @@ type task struct {
 	file  string
 }
 
-func (c *Coordinator) register(pid int, task *task) {
+func (c *Coordinator) register(pid int, task *task, phase int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	c.workers[pid] = &worker{
-		time.Now(), task,
+		phase,
+		pid,
+		time.Now(),
+		task,
 	}
 }
 
-// XXX it's up to the caller to lock before calling this, maybe not a good idea
+// XXX it's up to the caller to lock before calling this
 func (c *Coordinator) unregister(pid int) {
 	delete(c.workers, pid)
 }
 
-func (c *Coordinator) workerFailed() (bool, int) {
-	for pid, w := range c.workers {
+func (c *Coordinator) workerFailed() (bool, *worker) {
+	for _, w := range c.workers {
 		if time.Since(w.t) > 10*time.Second {
-			return true, pid
+			return true, w
 		}
 		time.Sleep(1 * time.Second)
 	}
-	return false, 0
+	return false, nil
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -62,8 +67,14 @@ func (c *Coordinator) Request(args *Args, reply *Reply) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if failed, pid := c.workerFailed(); failed {
-		c.unregister(pid)
+	if failed, w := c.workerFailed(); failed {
+		c.unregister(w.pid)
+		switch w.phase {
+		case Map:
+			c.mapTasks[w.task.id].state = 0
+		case Reduce:
+			c.reduceTasks[w.task.id].state = 0
+		}
 	}
 
 	if c.nMap > 0 {
@@ -75,7 +86,7 @@ func (c *Coordinator) Request(args *Args, reply *Reply) error {
 
 			reply.Phase = Map
 
-			c.register(args.PID, t)
+			c.register(args.PID, t, Map)
 
 			reply.NMap = c.nMap
 			reply.ID = i
@@ -93,6 +104,9 @@ func (c *Coordinator) Request(args *Args, reply *Reply) error {
 		if t.state > 0 {
 			continue
 		}
+
+		c.register(args.PID, t, Map)
+
 		reply.ID = i
 		c.reduceTasks[i].state = 1
 	}
