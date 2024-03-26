@@ -22,7 +22,6 @@ type Coordinator struct {
 }
 
 type worker struct {
-	pid  int
 	t    time.Time
 	task *task
 }
@@ -36,7 +35,15 @@ type task struct {
 func (c *Coordinator) register(pid int, task *task) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.workers[pid] = &worker{pid, time.Now(), task}
+
+	c.workers[pid] = &worker{
+		time.Now(), task,
+	}
+}
+
+// XXX it's up to the caller to lock before calling this, maybe not a good idea
+func (c *Coordinator) unregister(pid int) {
+	delete(c.workers, pid)
 }
 
 func (c *Coordinator) workerFailed() (bool, int) {
@@ -55,14 +62,18 @@ func (c *Coordinator) Request(args *Args, reply *Reply) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if failed, pid := c.workerFailed(); failed {
+		c.unregister(pid)
+	}
+
 	if c.nMap > 0 {
 		// farmout map tasks
-		reply.Phase = Map
-
 		for i, t := range c.mapTasks {
 			if t.state > 0 {
 				continue
 			}
+
+			reply.Phase = Map
 
 			c.register(args.PID, t)
 
