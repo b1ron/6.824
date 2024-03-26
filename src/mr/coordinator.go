@@ -112,7 +112,7 @@ func (c *Coordinator) Request(args *Args, reply *Reply) error {
 	return nil
 }
 
-func (c *Coordinator) DoneTask(args *Args, reply *Reply) error {
+func (c *Coordinator) Complete(args *Args, reply *Reply) error {
 	return nil
 }
 
