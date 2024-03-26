@@ -105,7 +105,7 @@ func (c *Coordinator) Request(args *Args, reply *Reply) error {
 			continue
 		}
 
-		c.register(args.PID, t, Map)
+		c.register(args.PID, t, Reduce)
 
 		reply.ID = i
 		c.reduceTasks[i].state = 1
