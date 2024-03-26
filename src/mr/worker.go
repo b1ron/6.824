@@ -44,16 +44,22 @@ func Worker(mapf func(string, string) []KeyValue,
 	for {
 		reply, ok := request()
 		if !ok {
+			fmt.Printf("No more tasks\n")
 			break
 		}
 
 		switch reply.Phase {
 		case Map:
+			fmt.Printf("Map task %v assigned\n", reply.ID)
 			err := doMap(reply.Filename, reply.NReduce, mapf)
 			if err != nil {
-				log.Fatalf("doMap failed") // TODO: handle errors properly
+				log.Fatalf("doMap failed")
 			}
 		case Reduce:
+			err := doReduce(reply.ID, reducef)
+			if err != nil {
+				log.Fatalf("doReduce failed")
+			}
 		}
 	}
 
@@ -117,6 +123,8 @@ func doMap(filename string, nReduce int, mapf func(string, string) []KeyValue) e
 
 		ofile.Close()
 	}
+
+	fmt.Printf("Map task %v done\n", mapTask)
 	return nil
 }
 

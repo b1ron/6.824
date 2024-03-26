@@ -1,6 +1,7 @@
 package mr
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -35,9 +36,6 @@ type task struct {
 }
 
 func (c *Coordinator) register(pid int, task *task, phase int) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	c.workers[pid] = &worker{
 		phase,
 		pid,
@@ -83,10 +81,11 @@ func (c *Coordinator) Request(args *Args, reply *Reply) error {
 				continue
 			}
 
-			reply.Phase = Map
+			fmt.Printf("assigning map task %d to worker %d\n", i, args.PID)
 
 			c.register(args.PID, t, Map)
 
+			reply.Phase = Map
 			reply.NMap = c.nMap
 			reply.ID = i
 			reply.Filename = t.file
@@ -103,6 +102,8 @@ func (c *Coordinator) Request(args *Args, reply *Reply) error {
 		if t.state > 0 {
 			continue
 		}
+
+		fmt.Printf("assigning reduce task %d to worker %d\n", i, args.PID)
 
 		c.register(args.PID, t, Reduce)
 
