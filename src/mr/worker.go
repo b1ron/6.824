@@ -33,6 +33,8 @@ func ihash(key string) int {
 	return int(h.Sum32() & 0x7fffffff)
 }
 
+var nReduce int = 10 // TODO: set this global variable properly via an RPC call
+
 // main/mrworker.go calls this function.
 func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
@@ -121,7 +123,7 @@ func doMap(filename string, nReduce int, mapf func(string, string) []KeyValue) e
 func doReduce(reduceTask int, reducef func(string, []string) string) error {
 	var intermediate = []KeyValue{}
 
-	for mapTask := 0; mapTask < reduceTask; mapTask++ {
+	for mapTask := 0; mapTask < nReduce; mapTask++ {
 		filename := fmt.Sprintf("mr-%v-%v", mapTask, reduceTask)
 		file, err := os.Open(filename)
 		if err != nil {

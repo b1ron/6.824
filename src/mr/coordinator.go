@@ -112,6 +112,10 @@ func (c *Coordinator) Request(args *Args, reply *Reply) error {
 	return nil
 }
 
+func (c *Coordinator) DoneTask(args *Args, reply *Reply) error {
+	return nil
+}
+
 // start a thread that listens for RPCs from worker.go
 func (c *Coordinator) server() {
 	rpc.Register(c)
@@ -147,7 +151,12 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	// the coordinator can re-assign tasks to workers if they fail to complete them within a certain time frame (e.g. 10 seconds)
 	c.mapTasks = []*task{}
 	for i, file := range files {
-		c.mapTasks = append(c.mapTasks, &task{i, 0, file})
+		t := &task{
+			id:    i,
+			state: 0,
+			file:  file,
+		}
+		c.mapTasks = append(c.mapTasks, t)
 		c.nMap++
 	}
 	c.nReduce = nReduce
