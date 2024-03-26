@@ -129,7 +129,6 @@ func doReduce(reduceTask int, reducef func(string, []string) string) error {
 		if err != nil {
 			log.Fatalf("cannot open %v", filename)
 		}
-		mapTask++
 
 		var kv []KeyValue
 		dec := json.NewDecoder(file)
