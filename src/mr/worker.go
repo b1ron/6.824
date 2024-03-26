@@ -64,6 +64,9 @@ func Worker(mapf func(string, string) []KeyValue,
 			if err != nil {
 				log.Fatalf("doReduce failed")
 			}
+			if ok := complete(Reduce, reply.PID); !ok {
+				log.Fatalf("call failed")
+			}
 			fmt.Printf("Reduce task %v done\n", reply.ID)
 		}
 	}

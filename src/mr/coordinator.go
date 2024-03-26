@@ -174,6 +174,9 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	}
 	c.nReduce = nReduce
 	c.reduceTasks = make([]*task, nReduce)
+	for i := 0; i < nReduce; i++ {
+		c.reduceTasks[i] = &task{state: 0}
+	}
 	c.workers = make(map[int]*worker)
 
 	c.server()
