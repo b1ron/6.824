@@ -33,8 +33,6 @@ func ihash(key string) int {
 	return int(h.Sum32() & 0x7fffffff)
 }
 
-var nReduce int = 10 // TODO: set this global variable properly via an RPC call
-
 // main/mrworker.go calls this function.
 func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
@@ -51,7 +49,7 @@ func Worker(mapf func(string, string) []KeyValue,
 		switch reply.Phase {
 		case Map:
 			fmt.Printf("Map task %v assigned\n", reply.ID)
-			err := doMap(reply.Filename, reply.NReduce, mapf)
+			err := doMap(reply.Filename, reply.NReduce, reply.ID, mapf)
 			if err != nil {
 				log.Fatalf("doMap failed")
 			}
@@ -60,7 +58,7 @@ func Worker(mapf func(string, string) []KeyValue,
 			}
 			fmt.Printf("Map task %v done\n", reply.ID)
 		case Reduce:
-			err := doReduce(reply.ID, reducef)
+			err := doReduce(reply.ID, reply.NReduce, reducef)
 			if err != nil {
 				log.Fatalf("doReduce failed")
 			}
@@ -94,7 +92,7 @@ func complete(phase int, pid int) bool {
 	return ok
 }
 
-func doMap(filename string, nReduce int, mapf func(string, string) []KeyValue) error {
+func doMap(filename string, nReduce int, mapTask int, mapf func(string, string) []KeyValue) error {
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatalf("cannot open %v", filename)
@@ -115,28 +113,25 @@ func doMap(filename string, nReduce int, mapf func(string, string) []KeyValue) e
 		buckets[bucket] = append(buckets[bucket], kv)
 	}
 
-	mapTask := 0
 	for reduceTask, kv := range buckets {
 		oname := fmt.Sprintf("mr-%v-%v", mapTask, reduceTask)
 		ofile, err := os.Create(oname)
 		if err != nil {
 			log.Fatalf("cannot create %v", oname)
 		}
-		mapTask++
 
 		enc := json.NewEncoder(ofile)
 		err = enc.Encode(&kv)
 		if err != nil {
 			log.Fatalf("cannot encode %v", kv)
 		}
-
 		ofile.Close()
 	}
 
 	return nil
 }
 
-func doReduce(reduceTask int, reducef func(string, []string) string) error {
+func doReduce(reduceTask int, nReduce int, reducef func(string, []string) string) error {
 	var intermediate = []KeyValue{}
 
 	for mapTask := 0; mapTask < nReduce; mapTask++ {
