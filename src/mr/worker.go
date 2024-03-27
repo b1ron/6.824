@@ -58,7 +58,7 @@ func Worker(mapf func(string, string) []KeyValue,
 			}
 			fmt.Printf("Map task %v done\n", reply.ID)
 		case Reduce:
-			err := doReduce(reply.ID, reply.NReduce, reducef)
+			err := doReduce(reply.ID, reply.NMap, reducef)
 			if err != nil {
 				log.Fatalf("doReduce failed")
 			}
@@ -131,10 +131,10 @@ func doMap(filename string, nReduce int, mapTask int, mapf func(string, string) 
 	return nil
 }
 
-func doReduce(reduceTask int, nReduce int, reducef func(string, []string) string) error {
+func doReduce(reduceTask int, nMap int, reducef func(string, []string) string) error {
 	var intermediate = []KeyValue{}
 
-	for mapTask := 0; mapTask < nReduce; mapTask++ {
+	for mapTask := 0; mapTask < nMap; mapTask++ {
 		filename := fmt.Sprintf("mr-%v-%v", mapTask, reduceTask)
 		file, err := os.Open(filename)
 		if err != nil {
